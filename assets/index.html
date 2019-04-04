@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tableau ArangoDB WDC</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <form>
+      <div id="errors"></div>
+      <label>
+        <span>Data Source Name:</span>
+        <input name="dsn" type="text" value="ArangoDB WDC" />
+      </label>
+      <label>
+        <span>ArangoDB Username:</span>
+        <input name="username" type="text" value="root" required />
+      </label>
+      <label>
+        <span>ArangoDB Password:</span>
+        <input name="password" type="password" />
+      </label>
+      <div id="queries"></div>
+      <div class="notice">
+        Use <code>@OFFSET</code> for incremental fetching, e.g.
+        <code>LIMIT @OFFSET, 100</code> to fetch 100 results at a time.
+      </div>
+      <button id="add-query" type="button">Add table</button>
+      <button type="submit">Extract</button>
+    </form>
+    <div id="query" style="display:none">
+      <fieldset>
+        <legend>
+          <span>Table</span>
+          <button type="button">×</button>
+        </legend>
+        <label>
+          <span>Table ID</span>
+          <input name="queryId" type="text" required />
+        </label>
+        <label>
+          <span>Table Alias</span>
+          <input name="queryAlias" type="text" required />
+        </label>
+        <label>
+          <span>AQL Query</span>
+          <textarea name="queryAql" required></textarea>
+        </label>
+      </fieldset>
+    </div>
+    <script src="https://unpkg.com/es6-promise@4.2.6/dist/es6-promise.auto.min.js"></script>
+    <script src="https://unpkg.com/whatwg-fetch@3.0.0/dist/fetch.umd.js"></script>
+    <script src="https://connectors.tableau.com/libs/tableauwdc-2.3.latest.js"></script>
+    <script src="arangowdc.js"></script>
+  </body>
+</html>

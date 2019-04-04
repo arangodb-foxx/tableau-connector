@@ -1,0 +1,99 @@
+body {
+  margin: 0;
+  padding: 15px 0 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+form {
+  margin: 0 auto;
+  width: 640px;
+}
+input,
+textarea {
+  font: inherit;
+  box-sizing: border-box;
+  padding: 5px;
+}
+textarea,
+code {
+  font-family: "Courier New", Courier, monospace;
+}
+code {
+  margin: 0 2px;
+  padding: 2px;
+  background-color: hsl(60, 80%, 95%);
+  border: 1px solid hsla(0, 0%, 0%, 0.1);
+}
+button {
+  padding: 5px 15px;
+  background-color: hsl(240, 40%, 50%);
+  color: white;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+button[type="button"] {
+  background-color: white;
+  border-color: currentColor;
+  color: hsl(240, 40%, 50%);
+}
+.notice {
+  padding: 15px;
+  background-color: hsl(200, 80%, 95%);
+  border: 1px solid hsla(0, 0%, 0%, 0.1);
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+label {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 15px;
+}
+label > span {
+  width: 200px;
+  user-select: none;
+}
+label > :last-child {
+  flex-grow: 1;
+}
+textarea {
+  min-height: 10em;
+  resize: vertical;
+}
+fieldset {
+  margin: 0 0 15px;
+  counter-increment: queries;
+}
+fieldset legend > span {
+  font-size: 80%;
+  color: hsl(0, 0%, 50%);
+}
+fieldset legend > span::after {
+  content: " #" counter(queries);
+}
+fieldset:not(:only-child) {
+  border: 1px solid hsla(0, 0%, 0%, 0.2);
+}
+fieldset:not(:only-child) label > span {
+  width: 185px;
+}
+fieldset legend > button[type="button"] {
+  color: hsl(0, 40%, 50%);
+  padding: 5px 10px;
+}
+fieldset:only-child {
+  border: 0;
+  padding: 0;
+}
+fieldset:only-child legend {
+  display: none;
+}
+#errors:empty {
+  display: none;
+}
+#errors {
+  padding: 15px;
+  background-color: red;
+  color: white;
+  border: 1px solid hsla(0, 0%, 100%, 0.1);
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
