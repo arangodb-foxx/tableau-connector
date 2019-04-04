@@ -77,7 +77,7 @@
       query.querySelector('[name="queryAlias"]').value =
         "ArangoDB WDC result set";
       query.querySelector('[name="queryAql"]').placeholder =
-        "e.g.\nFOR doc IN documents\nLIMIT @OFFSET, 100\nRETURN documents";
+        "e.g. FOR doc IN documents LIMIT @OFFSET, 100 RETURN doc";
     }
   }
 
