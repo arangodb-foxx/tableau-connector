@@ -158,16 +158,16 @@
     })
       .then(function(response) {
         return response.json().then(function(body) {
-          response.body = body;
+          response._body = body;
           return response;
         });
       })
       .then(function(response) {
         if (!response.ok) {
-          throw new Error(response.body.errorMessage);
+          throw new Error(response._body.errorMessage);
         }
         table.appendRows(
-          response.body.result.map(function(row, i) {
+          response._body.result.map(function(row, i) {
             return extend(
               { _i: OFFSET + i },
               Array.isArray(schema)
@@ -181,9 +181,9 @@
             );
           })
         );
-        var cursorId = response.body.id;
-        var offset = OFFSET + response.body.result.length;
-        var hasMore = response.body.hasMore;
+        var cursorId = response._body.id;
+        var offset = OFFSET + response._body.result.length;
+        var hasMore = response._body.hasMore;
         function fetchMore() {
           if (!hasMore) return;
           console.log("Fetching more results ...");
@@ -193,13 +193,13 @@
           })
             .then(function(response) {
               return response.json().then(function(body) {
-                response.body = body;
+                response._body = body;
                 return response;
               });
             })
             .then(function(response) {
               table.appendRows(
-                response.body.result.map(function(row, i) {
+                response._body.result.map(function(row, i) {
                   return extend(
                     { _id: offset + i },
                     Array.isArray(schema)
@@ -213,8 +213,8 @@
                   );
                 })
               );
-              offset += response.body.result.length;
-              hasMore = response.body.hasMore;
+              offset += response._body.result.length;
+              hasMore = response._body.hasMore;
               return fetchMore();
             });
         }
@@ -262,7 +262,7 @@
             })
               .then(function(response) {
                 return response.json().then(function(body) {
-                  response.body = body;
+                  response._body = body;
                   return response;
                 });
               })
@@ -272,19 +272,19 @@
                     "Invalid query #" +
                       (i + 1) +
                       ": " +
-                      response.body.errorMessage
+                      response._body.errorMessage
                   );
                 }
                 if (
-                  response.body.bindVars.length &&
-                  (response.body.bindVars.length > 1 ||
-                    response.body.bindVars[0] !== "OFFSET")
+                  response._body.bindVars.length &&
+                  (response._body.bindVars.length > 1 ||
+                    response._body.bindVars[0] !== "OFFSET")
                 ) {
                   throw new Error(
                     "Invalid bindVars in query #" +
                       (i + 1) +
                       ": " +
-                      response.body.bindVars.join(", ") +
+                      response._body.bindVars.join(", ") +
                       " (only @OFFSET allowed)"
                   );
                 }
@@ -292,7 +292,7 @@
                   id: queryId[i],
                   alias: queryAlias[i],
                   query: queryAql[i],
-                  incremental: response.body.bindVars[0] === "OFFSET"
+                  incremental: response._body.bindVars[0] === "OFFSET"
                 });
               });
           });
@@ -315,15 +315,15 @@
             })
               .then(function(response) {
                 return response.json().then(function(body) {
-                  response.body = body;
+                  response._body = body;
                   return response;
                 });
               })
               .then(function(response) {
-                queries[i].schema = inferSchema(response.body.result[0]);
-                if (response.body.id) {
+                queries[i].schema = inferSchema(response._body.result[0]);
+                if (response._body.id) {
                   console.log("Disposing of cursor ...");
-                  return fetch("../_api/cursor/" + response.body.id, {
+                  return fetch("../_api/cursor/" + response._body.id, {
                     headers: headers,
                     method: "DELETE"
                   });
