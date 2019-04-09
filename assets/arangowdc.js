@@ -63,7 +63,14 @@
     return null;
   }
 
-  function addQuery() {
+  function addQuery(opts) {
+    if (!opts) {
+      if (queriesDiv.children.length) {
+        opts = { id: "", alias: "", query: "" };
+      } else {
+        opts = { id: "arangoWdc", alias: "ArangoDB WDC result set", query: "" };
+      }
+    }
     var query = queryTemplate.firstElementChild.cloneNode(true);
     var removeQueryBtn = query.querySelector("button");
     function remove() {
@@ -72,16 +79,15 @@
     }
     removeQueryBtn.addEventListener("click", remove);
     query = queriesDiv.appendChild(query);
+    query.querySelector('[name="queryId"]').value = opts.id;
+    query.querySelector('[name="queryAlias"]').value = opts.alias;
+    query.querySelector('[name="queryAql"]').value = opts.query;
     if (queriesDiv.children.length === 1) {
-      query.querySelector('[name="queryId"]').value = "arangoWdc";
-      query.querySelector('[name="queryAlias"]').value =
-        "ArangoDB WDC result set";
       query.querySelector('[name="queryAql"]').placeholder =
         "e.g. FOR doc IN documents LIMIT @OFFSET, 100 RETURN doc";
     }
   }
 
-  addQuery();
   addQueryBtn.addEventListener("click", function(evt) {
     evt.preventDefault();
     addQuery();
@@ -96,9 +102,19 @@
     if (tableau.connectionData) {
       try {
         var data = JSON.parse(tableau.connectionData);
-        connectionName = data.connectionName;
-        queries = data.queries;
-      } catch (e) {}
+        connectionName = data.connectionName || "ArangoDB WDC";
+        queries = data.queries || [];
+        form.username.value = tableau.username || "";
+        form.password.value = tableau.password || "";
+        form.dsn.value = connectionName;
+        for (var i = 0; i < queries.length; i++) {
+          addQuery(queries[i]);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      addQuery();
     }
     done();
   };
