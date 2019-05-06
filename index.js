@@ -2,6 +2,7 @@
 const path = require("path");
 const createRouter = require("@arangodb/foxx/router");
 const { context } = require("@arangodb/locals");
+
 const router = createRouter();
 context.use(router);
 

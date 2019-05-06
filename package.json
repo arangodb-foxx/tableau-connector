@@ -1,7 +1,6 @@
 {
   "private": true,
   "devDependencies": {
-    "@types/arangodb": "^3.4.9",
-    "foxx-cli": "^1.3.0"
+    "@types/arangodb": "^3.4.9"
   }
 }
