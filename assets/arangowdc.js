@@ -239,7 +239,7 @@
       .catch(function(error) {
         alert(error.message);
       })
-      .finally(done);
+      .then(done, done);
   };
 
   tableau.registerConnector(connector);
