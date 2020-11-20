@@ -1,4 +1,4 @@
-(function() {
+(function () {
   "use strict";
   /**@type {HTMLDivElement} */
   var queriesDiv = document.getElementById("queries");
@@ -12,7 +12,7 @@
   var queries = [];
 
   function extend(base, ext) {
-    Object.keys(ext).forEach(function(key) {
+    Object.keys(ext).forEach(function (key) {
       base[key] = ext[key];
     });
     return base;
@@ -36,6 +36,165 @@
     return arr;
   }
 
+  function fetchJson(url, options) {
+    return fetch(url, options).then(function (response) {
+      if (response.status === 204) return response;
+      return response.json().then(function (body) {
+        response._body = body;
+        return response;
+      });
+    });
+  }
+
+  function consumeCursorResult(body, table, schema, offset) {
+    var count = offset + body.result.length;
+    table.appendRows(
+      body.result.map(function (row, i) {
+        return extend(
+          { _i: offset + i + 1 },
+          Array.isArray(schema)
+            ? row.reduce(function (obj, value, j) {
+                obj["value" + j] = value;
+                return obj;
+              }, {})
+            : typeof schema === "string"
+            ? { value: row }
+            : row
+        );
+      })
+    );
+    if (!body.hasMore) return count;
+    var headers = new Headers();
+    headers.append("authorization", getAuthorization());
+    return fetchJson("../_api/cursor/" + body.id, {
+      method: "PUT",
+      headers: headers,
+    }).then(function (response) {
+      return consumeCursorResult(response._body, table, schema, count);
+    });
+  }
+
+  function getAuthorization() {
+    return "Basic " + btoa(tableau.username + ":" + tableau.password);
+  }
+
+  function fetchAllNonIncremental(query, table, schema) {
+    console.log('Fetching all items for table "' + table.tableInfo.id + '"...');
+    var headers = new Headers();
+    headers.append("authorization", getAuthorization());
+    return fetchJson("../_api/cursor", {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({
+        query: query,
+      }),
+    }).then(function (response) {
+      return consumeCursorResult(response._body, table, schema, 0);
+    });
+  }
+
+  function fetchAllIncremental(query, table, schema, offset, fullCount) {
+    if (!offset) offset = 0;
+    console.log(
+      "Fetching increment from " +
+        offset +
+        ' for table "' +
+        table.tableInfo.id +
+        '"...'
+    );
+    var headers = new Headers();
+    headers.append("authorization", getAuthorization());
+    return fetchJson("../_api/cursor", {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({
+        query: query,
+        bindVars: { OFFSET: offset },
+        options: { fullCount: !fullCount },
+      }),
+    })
+      .then(function (response) {
+        fullCount = response._body.extra.stats.fullCount || fullCount;
+        return consumeCursorResult(response._body, table, schema, offset);
+      })
+      .then(function (count) {
+        if (count >= fullCount) return count;
+        console.log("Found " + count + " so far...");
+        return fetchAllIncremental(query, table, schema, count, fullCount);
+      });
+  }
+
+  function fetchOneIncrement(query, table, schema, offset) {
+    console.log(
+      "Fetching one increment from " +
+        offset +
+        ' for table "' +
+        table.tableInfo.id +
+        '"...'
+    );
+    if (!offset) offset = 0;
+    var headers = new Headers();
+    headers.append("authorization", getAuthorization());
+    return fetchJson("../_api/cursor", {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({
+        query: query,
+        bindVars: { OFFSET: offset },
+      }),
+    }).then(function (response) {
+      return consumeCursorResult(response._body, table, schema, offset);
+    });
+  }
+
+  function fetchData(query, table) {
+    if (query.incremental) {
+      var offset = parseFloat(table.incrementValue);
+      console.log(
+        'Increment value from Tableau is: "' + table.incrementValue + '"'
+      );
+      if (!isNaN(offset) && offset >= 0) {
+        return fetchOneIncrement(
+          query.query,
+          table,
+          query.schema,
+          Math.max(0, offset - 1)
+        ).then(function (count) {
+          console.log(
+            "Done fetching " +
+              count +
+              ' items for table "' +
+              table.tableInfo.id +
+              '".'
+          );
+        });
+      }
+      return fetchAllIncremental(query.query, table, query.schema, 0).then(
+        function (count) {
+          console.log(
+            "Done fetching all " +
+              count +
+              ' items for table "' +
+              table.tableInfo.id +
+              '".'
+          );
+        }
+      );
+    } else {
+      return fetchAllNonIncremental(query.query, table, query.schema).then(
+        function (count) {
+          console.log(
+            "Done fetching all " +
+              count +
+              ' items for table "' +
+              table.tableInfo.id +
+              '".'
+          );
+        }
+      );
+    }
+  }
+
   function inferSchema(result) {
     if (typeof result === "string") {
       if (result.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -54,7 +213,7 @@
     if (typeof result === "number") return tableau.dataTypeEnum.float;
     if (Array.isArray(result)) return result.map(inferSchema);
     if (result && typeof result === "object") {
-      return Object.keys(result).reduce(function(obj, key) {
+      return Object.keys(result).reduce(function (obj, key) {
         obj[key] = inferSchema(result[key]);
         return obj;
       }, {});
@@ -88,11 +247,11 @@
     }
   }
 
-  addQueryBtn.addEventListener("click", function(evt) {
+  addQueryBtn.addEventListener("click", function (evt) {
     evt.preventDefault();
     addQuery();
   });
-  form.addEventListener("submit", function(evt) {
+  form.addEventListener("submit", function (evt) {
     evt.preventDefault();
     submit();
   });
@@ -120,7 +279,14 @@
   };
   connector.getSchema = function getSchema(done) {
     done(
-      queries.map(function(query) {
+      queries.map(function (query) {
+        console.log(
+          'Query "' +
+            query.id +
+            '" is ' +
+            (query.incremental ? "" : "not ") +
+            "incremental"
+        );
         return {
           id: query.id,
           alias: query.alias,
@@ -128,118 +294,33 @@
           columns: [].concat.apply(
             [{ id: "_i", alias: "index", dataType: tableau.dataTypeEnum.int }],
             Array.isArray(query.schema)
-              ? query.schema.map(function(schema, i) {
+              ? query.schema.map(function (schema, i) {
                   return {
                     id: "value" + i,
-                    dataType: schema
+                    dataType: schema,
                   };
                 })
               : typeof query.schema === "string"
               ? [{ id: "value", dataType: query.schema }]
-              : Object.keys(query.schema).map(function(key) {
+              : Object.keys(query.schema).map(function (key) {
                   return {
                     id: key,
-                    dataType: query.schema[key]
+                    dataType: query.schema[key],
                   };
                 })
-          )
+          ),
         };
       })
     );
   };
   connector.getData = function getData(table, done) {
-    var headers = new Headers();
-    headers.append(
-      "authorization",
-      "Basic " + btoa(tableau.username + ":" + tableau.password)
-    );
-    var i = findIndex(queries, function(query) {
+    var i = findIndex(queries, function (query) {
       return query.id === table.tableInfo.id;
     });
-    var query = queries[i].query;
-    var incremental = queries[i].incremental;
-    var schema = queries[i].schema;
-    console.log(table);
-    var OFFSET = table.incrementValue ? Number(table.incrementValue) + 1 : 0;
     console.log('Fetching results for table "' + table.tableInfo.id + '" ...');
-    if (incremental) console.log("with @OFFSET = " + OFFSET);
-
-    fetch("../_api/cursor", {
-      headers: headers,
-      method: "POST",
-      body: JSON.stringify({
-        query: query,
-        bindVars: incremental ? { OFFSET: OFFSET } : undefined
-      })
-    })
-      .then(function(response) {
-        return response.json().then(function(body) {
-          response._body = body;
-          return response;
-        });
-      })
-      .then(function(response) {
-        if (!response.ok) {
-          throw new Error(response._body.errorMessage);
-        }
-        table.appendRows(
-          response._body.result.map(function(row, i) {
-            return extend(
-              { _i: OFFSET + i },
-              Array.isArray(schema)
-                ? row.reduce(function(obj, value, i) {
-                    obj["value" + i] = value;
-                    return obj;
-                  }, {})
-                : typeof schema === "string"
-                ? { value: row }
-                : row
-            );
-          })
-        );
-        var cursorId = response._body.id;
-        var offset = OFFSET + response._body.result.length;
-        var hasMore = response._body.hasMore;
-        function fetchMore() {
-          if (!hasMore) return;
-          console.log("Fetching more results ...");
-          return fetch("../_api/cursor/" + cursorId, {
-            headers: headers,
-            method: "PUT"
-          })
-            .then(function(response) {
-              return response.json().then(function(body) {
-                response._body = body;
-                return response;
-              });
-            })
-            .then(function(response) {
-              table.appendRows(
-                response._body.result.map(function(row, i) {
-                  return extend(
-                    { _id: offset + i },
-                    Array.isArray(schema)
-                      ? row.reduce(function(obj, value, j) {
-                          obj["value" + j] = value;
-                          return obj;
-                        }, {})
-                      : typeof schema === "string"
-                      ? { value: row }
-                      : row
-                  );
-                })
-              );
-              offset += response._body.result.length;
-              hasMore = response._body.hasMore;
-              return fetchMore();
-            });
-        }
-        return Promise.resolve().then(fetchMore);
-      })
-      .catch(function(error) {
-        alert(error.message);
-      })
-      .then(done, done);
+    return fetchData(queries[i], table).then(done, function (error) {
+      tableau.abortWithError(error.stack || String(error));
+    });
   };
 
   tableau.registerConnector(connector);
@@ -249,114 +330,104 @@
     tableau.password = form.password.value;
     connectionName = form.dsn.value || "ArangoDB WDC";
     queries = [];
-    var queryAql = splat(form.queryAql).map(function(el) {
+    var queryAql = splat(form.queryAql).map(function (el) {
       return el.value;
     });
-    var queryId = splat(form.queryId).map(function(el) {
+    var queryId = splat(form.queryId).map(function (el) {
       return el.value;
     });
-    var queryAlias = splat(form.queryAlias).map(function(el) {
+    var queryAlias = splat(form.queryAlias).map(function (el) {
       return el.value;
     });
     var headers = new Headers();
-    headers.append(
-      "authorization",
-      "Basic " + btoa(tableau.username + ":" + tableau.password)
-    );
+    headers.append("authorization", getAuthorization());
     return fetch("../_api/version", { headers: headers })
-      .then(function(response) {
+      .then(function (response) {
         if (!response.ok) {
           throw new Error("Invalid credentials");
         }
-        return queryAql.reduce(function(p, _, i) {
-          return p.then(function() {
+        return queryAql.reduce(function (p, _, i) {
+          return p.then(function () {
             console.log("Parsing query #" + (i + 1) + " ...");
-            return fetch("../_api/query", {
-              headers: headers,
+            return fetchJson("../_api/query", {
               method: "POST",
-              body: JSON.stringify({ query: queryAql[i] })
-            })
-              .then(function(response) {
-                return response.json().then(function(body) {
-                  response._body = body;
-                  return response;
-                });
-              })
-              .then(function(response) {
-                if (!response.ok) {
-                  throw new Error(
-                    "Invalid query #" +
-                      (i + 1) +
-                      ": " +
-                      response._body.errorMessage
-                  );
-                }
-                if (
-                  response._body.bindVars.length &&
-                  (response._body.bindVars.length > 1 ||
-                    response._body.bindVars[0] !== "OFFSET")
-                ) {
-                  throw new Error(
-                    "Invalid bindVars in query #" +
-                      (i + 1) +
-                      ": " +
-                      response._body.bindVars.join(", ") +
-                      " (only @OFFSET allowed)"
-                  );
-                }
-                queries.push({
-                  id: queryId[i],
-                  alias: queryAlias[i],
-                  query: queryAql[i],
-                  incremental: response._body.bindVars[0] === "OFFSET"
-                });
+              headers: headers,
+              body: JSON.stringify({ query: queryAql[i] }),
+            }).then(function (response) {
+              if (!response.ok) {
+                throw new Error(
+                  "Invalid query #" +
+                    (i + 1) +
+                    ": " +
+                    response._body.errorMessage
+                );
+              }
+              if (
+                response._body.bindVars.length &&
+                (response._body.bindVars.length > 1 ||
+                  response._body.bindVars[0] !== "OFFSET")
+              ) {
+                throw new Error(
+                  "Invalid bindVars in query #" +
+                    (i + 1) +
+                    ": " +
+                    response._body.bindVars.join(", ") +
+                    " (only @OFFSET allowed)"
+                );
+              }
+              queries.push({
+                id: queryId[i],
+                alias: queryAlias[i],
+                query: queryAql[i],
+                incremental: response._body.bindVars[0] === "OFFSET",
               });
+            });
           });
         }, Promise.resolve());
       })
-      .then(function() {
-        return queries.reduce(function(p, _, i) {
-          return p.then(function() {
+      .then(function () {
+        return queries.reduce(function (p, _, i) {
+          return p.then(function () {
             console.log("Inferring schema for query #" + i + " ...");
             var query = queries[i].query;
             var incremental = queries[i].incremental;
             return fetch("../_api/cursor", {
-              headers: headers,
               method: "POST",
+              headers: headers,
               body: JSON.stringify({
                 query: query,
                 bindVars: incremental ? { OFFSET: 0 } : undefined,
-                batchSize: 1
-              })
+                batchSize: 1,
+              }),
             })
-              .then(function(response) {
-                return response.json().then(function(body) {
+              .then(function (response) {
+                return response.json().then(function (body) {
                   response._body = body;
                   return response;
                 });
               })
-              .then(function(response) {
+              .then(function (response) {
                 queries[i].schema = inferSchema(response._body.result[0]);
                 if (response._body.id) {
                   console.log("Disposing of cursor ...");
                   return fetch("../_api/cursor/" + response._body.id, {
+                    method: "DELETE",
                     headers: headers,
-                    method: "DELETE"
                   });
                 }
               });
           });
         }, Promise.resolve());
       })
-      .then(function() {
+      .then(function () {
         tableau.connectionData = JSON.stringify({
           connectionName: connectionName,
-          queries: queries
+          queries: queries,
         });
         tableau.connectionName = connectionName;
         tableau.submit();
       })
-      .catch(function(error) {
+      .catch(function (error) {
         errorsDiv.innerHTML = error.message;
       });
   }
