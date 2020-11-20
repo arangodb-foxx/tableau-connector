@@ -2,7 +2,7 @@
   "$schema": "http://json.schemastore.org/foxx-manifest",
   "name": "tableau-connector",
   "description": "Example Tableau Web Data Connector for ArangoDB.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "thumbnail": "tableau.png",
   "engines": {
     "arangodb": "^3.0.0"
