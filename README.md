@@ -2,7 +2,7 @@
 
 This is an example Tableau connector for ArangoDB.
 
-![ArangoWDC screenshot](arangowdc.png)
+![ArangoWDC screenshot](https://raw.githubusercontent.com/arangodb-foxx/tableau-connector/master/arangowdc.png)
 
 ## Features
 
@@ -19,18 +19,18 @@ This is an example Tableau connector for ArangoDB.
 ## Installation
 
 The connector can be installed as a Foxx service using the
-[ArangoDB web interface](https://docs.arangodb.com/latest/Manual/Programs/WebInterface/Services.html)
+[ArangoDB web interface](https://docs.arangodb.com/stable/components/web-interface/services/)
 or the [Foxx CLI](https://github.com/arangodb/foxx-cli):
 
 ```sh
 $ npm install --global foxx-cli
 $ foxx install -u root -P -H http://localhost:8529 -D _system /tableau \
-https://github.com/arangodb/tableau-arangodb-wdc/archive/master.zip
+https://github.com/arangodb-foxx/tableau-connector/archive/master.zip
 
 # or without installing foxx-cli:
 
 $ npx foxx-cli install -u root -P -H http://localhost:8529 -D _system /tableau \
-https://github.com/arangodb/tableau-arangodb-wdc/archive/master.zip
+https://github.com/arangodb-foxx/tableau-connector/archive/master.zip
 ```
 
 ## Adding the data source
